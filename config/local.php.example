@@ -1,0 +1,28 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Local configuration, used when a real environment variable is absent.
+ * Copy to config/local.php (git-ignored) and fill real values.
+ * Never commit real values.
+ */
+
+return [
+    // 'APP_ENV' => 'production',
+    // 'APP_DEBUG' => 'false',
+    // 'APP_NAME' => 'Ask a Human',
+    // 'APP_URL' => 'https://askhuman.ru',       // required in production
+    // 'DISPLAY_TIMEZONE' => 'Europe/Moscow',
+    // 'DB_HOST' => '127.0.0.1',
+    // 'DB_PORT' => '3306',
+    // 'DB_NAME' => 'ask_a_human',
+    // 'DB_USER' => 'ask_a_human',
+    // 'DB_PASSWORD' => 'secret',
+    // 'ADMIN_PASSWORD_HASH' => '...',            // password_hash() output
+    // 'RATE_LIMIT_SECRET' => '32+ random bytes', // required in production
+    // 'CONTACT_EMAIL' => 'owner@example.com',    // required in production
+    // 'TELEGRAM_BOT_TOKEN' => '...',
+    // 'TELEGRAM_CHAT_ID' => '...',
+    // 'TRUSTED_PROXIES' => '203.0.113.10',
+];

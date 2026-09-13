@@ -1,0 +1,14 @@
+RewriteEngine On
+
+<IfModule mod_mime.c>
+  AddType image/svg+xml .svg
+  AddType application/manifest+json .webmanifest
+</IfModule>
+
+# Block direct access to hidden files and directories
+RewriteRule (^|/)\. - [F]
+
+# Serve existing files directly; route everything else to index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [L]

@@ -1,0 +1,426 @@
+openapi: 3.1.0
+info:
+  title: Ask a Human API
+  version: 1.0.0
+  summary: Public API through which an AI agent can ask a real human a question.
+  description: |
+    Ask a Human (askhuman.ru) gives website owners and experts a public "human endpoint": when an
+    AI agent cannot find the information it needs on their website, the agent
+    can ask the human directly and retrieve the answer later. Questions and
+    answers are public and become indexable pages.
+
+    Questions and answers are PUBLIC. Set "public": true to confirm consent.
+    Do not submit passwords, API keys, personal data, confidential
+    information, or other secrets.
+
+    Poll the status URL no more often than once every 60 seconds and increase
+    the interval gradually up to 15 minutes. Stop polling when the status is
+    "answered" or "declined".
+servers:
+  - url: https://askhuman.ru
+tags:
+  - name: questions
+paths:
+  /api/questions:
+    post:
+      tags: [questions]
+      operationId: createQuestion
+      summary: Submit a public question to a human
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuestionCreate'
+            examples:
+              basic:
+                value:
+                  title: Unusual project terms
+                  question: What is a useful question that web search could not answer?
+                  context: Describe what was searched and why a human perspective is needed.
+                  public: true
+      responses:
+        '201':
+          description: Question accepted and stored
+          headers:
+            Location:
+              description: Absolute status URL for this question
+              schema: { type: string, format: uri }
+            Idempotency-Replayed:
+              description: Present and true only when this is an idempotent replay
+              schema: { type: string, enum: ["false", "true"] }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QuestionCreated' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMedia' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    options:
+      tags: [questions]
+      summary: CORS preflight
+      responses:
+        '204':
+          description: No content with CORS headers
+  /api/questions/{id}:
+    get:
+      tags: [questions]
+      operationId: getQuestion
+      summary: Poll question status and answer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[0-9a-f]{32}$' }
+      responses:
+        '200':
+          description: Current status and, when available, the human answer
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QuestionStatus' }
+              examples:
+                waiting:
+                  value:
+                    id: 0123456789abcdef0123456789abcdef
+                    status: waiting_for_human
+                    title: Unusual project terms
+                    question: What is ...?
+                    context: Optional context
+                    answer: null
+                    created_at: '2026-09-12T15:20:30Z'
+                    question_url: /q/example-question
+                    poll_after_seconds: 60
+                answered:
+                  value:
+                    id: 0123456789abcdef0123456789abcdef
+                    status: answered
+                    title: Unusual project terms
+                    question: Reviewed public question
+                    context: Reviewed public context
+                    answer: The human answer.
+                    answered_by:
+                      name: Ivan Petrov
+                      url: /humans/ivan-petrov
+                    created_at: '2026-09-12T15:20:30Z'
+                    answered_at: '2026-09-12T16:00:00Z'
+                    updated_at: '2026-09-12T16:00:00Z'
+                    question_url: /q/example-question
+                declined:
+                  value:
+                    id: 0123456789abcdef0123456789abcdef
+                    status: declined
+                    question: What is ...?
+                    context: Optional context
+                    answer: null
+                    declined_reason: This question requires information I cannot verify.
+                    created_at: '2026-09-12T15:20:30Z'
+                    updated_at: '2026-09-12T16:00:00Z'
+                    question_url: /q/example-question
+        '404': { $ref: '#/components/responses/NotFound' }
+    options:
+      tags: [questions]
+      summary: CORS preflight
+      responses:
+        '204':
+          description: No content with CORS headers
+  /api/humans/{slug}/questions:
+    post:
+      tags: [questions]
+      operationId: createQuestionForHuman
+      summary: Ask a specific human endpoint
+      description: |
+        Submits a public question to one specific human endpoint. Use the
+        endpoint slug from the human's public URL (for example, /ivan-petrov)
+        or from /llms.txt. Returns the same representation as the generic
+        creation endpoint.
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 100 }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuestionCreate'
+      responses:
+        '201':
+          description: Question accepted and stored
+          headers:
+            Location:
+              description: Absolute status URL for this question
+              schema: { type: string, format: uri }
+            Idempotency-Replayed:
+              schema: { type: string, enum: ["false", "true"] }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QuestionCreated' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404':
+          description: No public human endpoint exists for that slug
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMedia' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    options:
+      tags: [questions]
+      summary: CORS preflight
+      responses:
+        '204':
+          description: No content with CORS headers
+  /api/humans:
+    post:
+      tags: [questions]
+      operationId: createHumanDraft
+      summary: Prepare a draft profile for a human (claim required)
+      description: |
+        Lets an AI agent create a draft profile on behalf of a human, for
+        example when the user says "create me a profile on Ask a Human". The
+        draft is created in status "awaiting_claim": it cannot accept
+        questions, is not indexed and does not appear in any catalog. Share
+        the returned claim_url with the human; opening it in Telegram binds
+        their account, activates the profile and invalidates the claim link.
+        The agent cannot activate a profile on its own.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HumanDraftCreate'
+            examples:
+              minimal:
+                value:
+                  name: Jane Doe
+              full:
+                value:
+                  name: Jane Doe
+                  slug: jane-doe
+                  headline: Product manager for developer tools
+                  bio: I can answer questions about developer products and docs.
+                  expertise: ["Product management", "Developer tools"]
+                  location: Berlin, Germany
+                  links: ["https://janedoe.example"]
+      responses:
+        '201':
+          description: Draft created, awaiting claim by the human
+          headers:
+            Location:
+              description: Future public profile URL (404 until claimed)
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HumanDraftCreated' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/TooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMedia' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    options:
+      tags: [questions]
+      summary: CORS preflight
+      responses:
+        '204':
+          description: No content with CORS headers
+components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: |
+        Stable retry key. A repeated key with identical content returns the
+        original resource (200, Idempotency-Replayed: true) without creating a
+        duplicate or re-notifying. A repeated key with different content
+        returns 409.
+      schema: { type: string, minLength: 1, maxLength: 128, pattern: '^[\x21-\x7E]+$' }
+  responses:
+    BadRequest:
+      description: Malformed JSON body
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: |
+        Reused idempotency key with different content, a duplicate question
+        submitted recently from the same network, or the target human is not
+        accepting new questions (error.code: "human_unavailable"); drafts:
+        reused idempotency key with different content.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    TooLarge:
+      description: Request body exceeds 32 KiB
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    UnsupportedMedia:
+      description: Content-Type must be application/json
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationError:
+      description: Field validation or public-consent failure
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    RateLimited:
+      description: Too many submissions from this network
+      headers:
+        Retry-After:
+          schema: { type: integer }
+          description: Seconds until the next attempt may succeed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Unknown, malformed, or hidden tracking ID
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+  schemas:
+    QuestionCreate:
+      type: object
+      required: [question, public]
+      additionalProperties: true
+      properties:
+        title:
+          type: [string, 'null']
+          minLength: 3
+          maxLength: 150
+          description: |
+            Optional. Short one-line heading for the question in its published
+            language. It becomes the answer page h1 and SEO title, and seeds the
+            question_url slug. Prefer a concise topic phrase over a full sentence.
+        question:
+          type: string
+          minLength: 20
+          maxLength: 4000
+          description: Trimmed length is counted in Unicode characters.
+        context:
+          type: [string, 'null']
+          maxLength: 8000
+        source_url:
+          type: [string, 'null']
+          maxLength: 2048
+          description: Optional. The page of the human's website where the information was missing.
+        public:
+          type: boolean
+          enum: [true]
+          description: Must be the literal boolean true to confirm public consent.
+    HumanDraftCreate:
+      type: object
+      required: [name]
+      additionalProperties: true
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        name_native: { type: string, maxLength: 100 }
+        location: { type: string, maxLength: 100 }
+        headline: { type: string, maxLength: 120 }
+        bio: { type: string, maxLength: 2000 }
+        expertise:
+          type: [array, 'null']
+          items: { type: string, maxLength: 60 }
+          maxItems: 15
+          description: Optional. Topics the human can answer questions about.
+        links:
+          type: [array, 'null']
+          items: { type: string }
+          maxItems: 5
+          description: Optional. Full http(s) URLs, optionally "Label | URL".
+        slug:
+          type: [string, 'null']
+          description: |
+            Optional proposed URL slug (latin letters/digits, single dashes).
+            If taken or reserved, a unique variant is generated; the response
+            always contains the final slug.
+    HumanDraftCreated:
+      type: object
+      required: [id, slug, status, profile_url, claim_url, message]
+      properties:
+        id: { type: string, pattern: '^[0-9a-f]{32}$' }
+        slug: { type: string }
+        status: { type: string, const: awaiting_claim }
+        profile_url:
+          type: string
+          format: uri
+          description: Returns 404 until the human claims the profile.
+        claim_url:
+          type: [string, 'null']
+          format: uri
+          description: |
+            Telegram deep link (https://t.me/<bot>?start=claim_<token>).
+            Valid 48 hours and single-use. null on an idempotent replay; the
+            claim link issued by the original request stays valid.
+        message: { type: string }
+    QuestionCreated:
+      type: object
+      required: [id, status, question_url, status_url, message]
+      properties:
+        id: { type: string, pattern: '^[0-9a-f]{32}$' }
+        status: { type: string, const: waiting_for_human }
+        question_url:
+          type: string
+          format: uri
+          description: Canonical pretty page URL (/q/{slug}); the tracking ID remains available as id and status_url.
+        message: { type: string }
+    QuestionStatus:
+      type: object
+      required: [id, status, question_url, created_at]
+      properties:
+        id: { type: string }
+        status:
+          type: string
+          enum: [waiting_for_human, answered, declined]
+        question: { type: string }
+        title:
+          type: [string, 'null']
+          description: Short heading submitted with the question; used as the public page h1
+        context: { type: [string, 'null'] }
+        answer: { type: [string, 'null'] }
+        declined_reason: { type: string }
+        answered_by:
+          type: object
+          properties:
+            name: { type: string }
+            url: { type: string, format: uri }
+        created_at: { type: string, format: date-time }
+        answered_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        question_url: { type: string, format: uri }
+        asked_to:
+          type: object
+          description: The human endpoint this question was asked to
+          properties:
+            name: { type: string }
+            url: { type: string, format: uri }
+        source_url: { type: [string, 'null'] }
+        poll_after_seconds: { type: integer, const: 60 }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            fields:
+              type: object
+              additionalProperties: { type: string }

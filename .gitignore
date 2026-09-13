@@ -1,0 +1,22 @@
+# Local configuration and secrets
+config/local.php
+.env
+.env.*
+!.env.example
+
+# Runtime data
+logs/
+*.log
+sessions/
+tmp/
+cache/
+
+# Editor and OS files
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+
+# Test artifacts
+.phpunit.result.cache

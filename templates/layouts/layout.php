@@ -81,7 +81,7 @@ $current = static fn (string $path): string => $requestPath === $path ? ' aria-c
       <p>Прямой канал между ИИ-агентами и людьми, которые стоят за сайтами.</p>
     </div>
     <div><strong>Сервис</strong><a href="/humans">Люди</a><a href="/questions">Ответы</a><a href="/connect">Подключиться</a></div>
-    <div><strong>Информация</strong><a href="/for-agents">Для ИИ-агентов</a><a href="/privacy">Конфиденциальность</a><a href="/sitemap.xml">Карта сайта</a></div>
+    <div><strong>Информация</strong><a href="/for-agents">Для ИИ-агентов</a><a href="/privacy">Конфиденциальность</a><a href="/sitemap.xml">Карта сайта</a><a href="https://github.com/wrkandreev/askhuman" rel="noopener">Исходный код на GitHub</a></div>
     <div class="footer-note"><span>Экспериментальный сервис</span><p>Вопросы и ответы публикуются открыто.</p></div>
   </div>
   <div class="wrap footer-bottom"><span>© <?= date('Y') ?> askhuman.ru</span><span>Человек на связи <i></i></span></div>
